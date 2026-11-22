@@ -40,3 +40,18 @@ Protected: doctor who owns encounter and has report-read rights. Shape: `Clinica
 - `period`: timezone (hospital-local), boundaries, and historical aggregation rules
 
 No real endpoint URL, bearer token, IDP, billing formula, database schema or clinical compliance certification has been inferred from the screenshots.
+
+## Repository boundary implemented in the frontend
+
+`lib/repositories/workspace-repository.ts` defines these logical operations without asserting backend URLs:
+
+- Fetch hospital dashboard by period and verified hospital scope.
+- List hospital doctors and fetch one scoped doctor.
+- Fetch doctor dashboard by period and verified doctor scope.
+- List doctor encounters and fetch one scoped encounter.
+- Fetch a scoped clinical report.
+- Save a draft, submit review, request revision, approve, and rate a report as explicit workflow operations.
+
+The current mock implementation supports deterministic reads. Report workflow controls intentionally update local demonstration state only. Before implementing writes, the backend contract still needs report version/revision identifiers, optimistic concurrency, transition permissions, validation errors, audit metadata, and idempotency behavior.
+
+The runtime selector is `NEXT_PUBLIC_DATA_MODE=mock`. No API-backed implementation is enabled until verified contracts are supplied.

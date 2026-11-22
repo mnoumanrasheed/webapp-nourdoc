@@ -6,5 +6,6 @@ export default async function DoctorEncountersPage({ searchParams }: { searchPar
   const user = await requireRole("doctor");
   const query = await searchParams;
   const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
-  return <AppShell user={user} section="encounters"><DoctorEncounterDirectory initialQuery={first(query.q)} initialSetting={first(query.setting)} initialStatus={first(query.status)}/></AppShell>;
+  const parsedPage = Number(first(query.page) ?? "1");
+  return <AppShell user={user} section="encounters"><DoctorEncounterDirectory initialQuery={first(query.q)} initialSetting={first(query.setting)} initialStatus={first(query.status)} initialPage={Number.isSafeInteger(parsedPage) ? parsedPage : 1}/></AppShell>;
 }

@@ -1,23 +1,65 @@
-# NourDoc – Role-Scoped Clinical Workspace (Next.js Prototype)
+# NourDoc Premium Healthcare Workspace
 
-A runnable **Next.js App Router + TypeScript** prototype inspired by the nine supplied screenshots. Includes premium dark/teal responsive hospital, doctor and clinical-report screens. Every displayed number and named sample record is from the screenshots or a straightforward arithmetic derivation, rather than fabricated historical data.
+A responsive Next.js App Router + TypeScript demonstration workspace for hospital operations, clinician activity, patient encounter navigation, and local clinical-report review workflows.
 
-**Crucial:** This is a **UI/architecture demo**, **not an authenticated production clinical application**. No live patients, real healthcare identity provider, billing, approvals, document signatures, AI verification, integrations or durable data storage are implemented.
+The application uses a premium white interface with NourDoc teal/emerald accents. All displayed records are synthetic demonstration fixtures. No live patient data, production identity provider, durable clinical writes, signatures, billing integration, or external sharing are connected.
 
-## Start locally
+## Local setup
 
-Requires Node.js 20.9+ and npm.
+Requires Node.js 20.9+.
 
 ```bash
 npm install
-cp .env.example .env.local
-# Change SESSION_SECRET to a new random value (32+ characters).
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. Sign in via the **demo administrator** or **demo doctor** selector. The selector simulates a role and does not verify a real identity. For PowerShell, use `Copy-Item .env.example .env.local` instead of `cp`.
+Set a unique 32+ character `SESSION_SECRET` in `.env.local`. Keep:
 
-### Quality checks
+```text
+DEMO_MODE=true
+NEXT_PUBLIC_DATA_MODE=mock
+```
+
+Open `http://localhost:3000/login` and choose either demonstration role.
+
+## Role-aware routes
+
+### Hospital administrator
+
+- `/hospital/dashboard` — Today KPIs, minute allocation, care-setting activity, and clinician utilization.
+- `/hospital/doctors` — Searchable demonstration doctor directory.
+- `/hospital/doctors/[doctorId]` — Scoped clinician activity detail.
+
+### Doctor
+
+- `/doctor/dashboard` — Dr. Ahmed Khan's demonstration activity and recent encounters.
+- `/doctor/encounters` — Search by patient/encounter, filter by care setting and status.
+- `/doctor/encounters/[encounterId]` — Encounter detail with filter-preserving return navigation.
+- `/clinical/reports/[reportId]` — Structured report editing and local review workflow.
+
+Legacy `/hospital`, `/doctor`, and `/reports/[id]` paths redirect to canonical routes.
+
+## Working interactions
+
+- Signed, HTTP-only demonstration session cookie and role-aware server checks.
+- Responsive sidebar and mobile drawer.
+- Profile menu and logout.
+- Today, 7 Days, and 30 Days filters. Only Today has supplied fixture data; other periods show honest empty states.
+- Doctor search and detail navigation.
+- Encounter search, care-setting filter, status filter, details, and report navigation.
+- Structured report editing, save draft, submit for review, request revision, confirmation before demo approval, and 1–5 usefulness rating.
+- Loading skeletons, empty states, error states, retries, focus states, and reduced-motion support.
+
+Report mutations update local React state only and are explicitly labeled preview-only. They do not create a signed clinical document.
+
+## Data architecture
+
+`lib/repositories/workspace-repository.ts` defines the logical operations required by the frontend. `lib/repositories/mock-workspace-repository.ts` provides deterministic demonstration data. `lib/repositories/index.ts` selects the implementation using `NEXT_PUBLIC_DATA_MODE`.
+
+Only `mock` mode is implemented. API mode intentionally throws until verified backend contracts are supplied. Internal Next.js API routes enforce current demonstration session scope before reading mock fixtures.
+
+## Quality checks
 
 ```bash
 npm run test
@@ -25,47 +67,17 @@ npm run typecheck
 npm run build
 ```
 
-## Features
+## Backend requirements
 
-- **Hospital Administrator:** Today's 186 served, 2,480 minutes consumed, PKR 48,095 illustrative expenditure, 24 waiting; balance 12,520 / 15,000; utilization for emergency, OPD, IPD and telehealth; selected example clinicians.
-- **Doctor:** Dr. Ahmed Khan's own dashboard, 28 served, 6 pending, 4 to approve, 385 consumed; balance 1,615 / 2,000; filter encounters by care setting.
-- **Clinical report:** Provided Patient B / ND-1025 SOAP example, editable local preview notes, approval *simulation only*, optional rating, disabled integration/sharing, verification reminders.
-- **Role guarding:** Signed, httpOnly, SameSite session cookie for demo; server pages and API routes check role and hospital/doctor scope. Unauthorized page requests are redirected; unauthorized API requests return 401/403. The mock identity selector itself is intentionally **not production authentication**.
-- **Date filters:** Only Today has screenshot-backed fixtures. The 7-day and 30-day views show an honest empty state rather than inventing numbers.
-- **Data boundary:** REST-style internal Next.js routes, suitable for later replacement with actual authorized API calls.
+Before production integration, supply and validate:
 
-## Internal endpoints (demo fixtures)
+- Identity provider/session verification and role/tenant claims.
+- Hospital and doctor ownership rules.
+- Pagination/filter contracts for doctors and encounters.
+- Report versioning, validation, optimistic concurrency, audit events, and signed approval transitions.
+- ICD-10/CPT verification service boundaries.
+- Metric definitions, reporting timezone, billing sources, and currency semantics.
+- Runtime response validation and standardized error payloads.
+- Privacy, security, retention, logging, and regulatory controls.
 
-| Method | Endpoint | Access | Response / behavior |
-| --- | --- | --- | --- |
-| POST | `/api/auth/demo-login` | Enabled only with `DEMO_MODE=true` | `{"role":"hospital_admin"}` or `{"role":"doctor"}`; creates a **demo** signed session. |
-| POST | `/api/auth/logout` | Any | Clears session. |
-| GET | `/api/hospital/overview?period=today` | Hospital admin | Hospital metrics, example clinicians, care setting breakdown for the signed-in hospital. |
-| GET | `/api/doctor/overview?period=today` | Doctor | Doctor's own metrics and encounters. |
-| GET | `/api/reports/ND-1025` | Doctor assigned to the encounter | Sample clinical report, if authorized. |
-| PATCH | `/api/reports/ND-1025` | Not implemented | Returns HTTP 501 by design. There is no real clinical write capability. |
-
-Other allowed values for `period`: `7d`, `30d`; they return `available: false` in this screenshot-derived fixture.
-
-## Future backend integration: work required
-
-1. Replace `lib/session.ts` demo-login with **real SSO / identity provider** and backend-issued sessions. Do not determine roles from client-supplied fields. Disable `DEMO_MODE` for real deployments.
-2. Use your backend as the **source of truth** for `user_id`, `role`, `hospital_id`, `doctor_id` and permissions. Validate all identity claims server-side; never rely only on hidden tabs or URL checks. Hospitals must not access other hospitals; doctors only their assigned encounters/reports. Resolve `hospital_id` and `doctor_id` from the verified session, not request parameters.
-3. Replace the mock functions in `lib/demo-data.ts` with server-side service/repository functions making authorized requests to the real APIs. Preserve the contracts in `lib/types.ts` or explicitly migrate them with backend mapping/validation.
-4. Implement actual login, logout, session expiry/revocation, MFA where required, access/audit logs, rate limiting, authorization tests, and error states.
-5. Add patient/encounter ownership checks and an audited report approval workflow, version control, approval signatures, workflow transitions, ICD/CPT verification, integration and sharing. Frontend-only approval cannot count as medical sign-off.
-6. Add source-of-truth definitions for `minutes_consumed`, `minutes_allocated`, unique patients vs. encounter counts, waiting vs. pending, expenditure/currency, reporting period/timezone, and any billing chargebacks before deploying real analytics.
-7. Follow applicable privacy regulations and perform a formal security/privacy review before processing health information. Do **not** place secrets or patient identifiers in client-exposed environment variables or analytics.
-8. Persist edited clinical reports and feedback only through validated, authorized write APIs (not local component state). Build an API contract, status codes, idempotency, concurrency and errors before enabling "Approve" or "Share".
-
-## Data assumptions intentionally avoided
-
-- The screenshots show **only** a portion of hospital clinicians. The four examples do not add up to the hospital-wide total. We do not invent additional doctors or assume the list is comprehensive.
-- The hospital and doctor balances are derived directly from the screenshot: hospital 12,520 available + 2,480 consumed = 15,000 allocated; doctor 1,615 available + 385 consumed = 2,000 allocated.
-- The doctor may see Patient A–D in the screenshot, but only **Patient B / ND-1025** has an accompanying report. Other reports are not fabricated.
-- Clinical text is illustrative, not medical advice or an AI verified finding. "Physician verification" labels show an outstanding action, not a completed check.
-- The displayed numbers are snapshots for **Today in the reference mockup**, not live hospital readings for the current calendar day.
-
-## Production constraints
-
-This project deliberately does not include a production-ready auth adapter or backend: the original API specifications, identity provider, deployment environment, database schema and permission matrix have not been provided. Replace them once supplied; do not repurpose the demo session as production access control.
+Do not reuse the demonstration role selector or browser-local report state as production authentication or clinical persistence.

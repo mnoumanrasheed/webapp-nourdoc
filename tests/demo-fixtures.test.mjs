@@ -6,8 +6,9 @@ const text = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 test('report lookup checks role and scope', () => {
   const source = text('app/api/reports/[id]/route.ts');
   assert.match(source, /apiUser\("doctor"\)/);
-  assert.match(source, /r\.doctorId === user\.doctorId/);
-  assert.match(source, /r\.hospitalId === user\.hospitalId/);
+  assert.match(source, /getClinicalReport\(user, id\)/);
+  assert.match(text('lib/repositories/mock-workspace-repository.ts'), /item\.doctorId === user\.doctorId/);
+  assert.match(text('lib/repositories/mock-workspace-repository.ts'), /item\.hospitalId === user\.hospitalId/);
 });
 test('overview endpoints authorize server side', () => {
   assert.match(text('app/api/hospital/overview/route.ts'), /apiUser\("hospital_admin"\)/);

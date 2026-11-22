@@ -58,7 +58,7 @@ export async function requireRole(role: Role): Promise<SessionUser> {
 }
 export async function requireDoctorReport(id: string) {
   const user = await requireRole("doctor");
-  const { reports } = await import("./demo-data");
-  const report = reports.find(r => r.id === id && r.doctorId === user.doctorId && r.hospitalId === user.hospitalId);
+  const { getWorkspaceRepository } = await import("./repositories");
+  const report = await getWorkspaceRepository().getClinicalReport(user, id);
   return { user, report };
 }

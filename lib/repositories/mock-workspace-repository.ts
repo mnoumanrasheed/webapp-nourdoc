@@ -23,7 +23,9 @@ export const mockWorkspaceRepository: WorkspaceRepository = {
   async getClinicalReport(user, reportId) {
     return reports.find(item => item.id === reportId && item.hospitalId === user.hospitalId && item.doctorId === user.doctorId) ?? null;
   },
-  async mutateDemoReport(_user, input) {
-    return { previewOnly: true, transition: input.transition };
-  },
+  async saveDraftReport() { return { previewOnly: true, transition: "save_draft" }; },
+  async requestReportReview() { return { previewOnly: true, transition: "submit_review" }; },
+  async approveReport() { return { previewOnly: true, transition: "approve" }; },
+  async requestReportRevision() { return { previewOnly: true, transition: "request_revision" }; },
+  async saveAiReportRating() { return { previewOnly: true, transition: "rate" }; },
 };
