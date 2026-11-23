@@ -1,68 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import {
-  Activity,
-  ArrowUpRight,
-  BarChart3,
-  CalendarDays,
-  Clock3,
-  HeartPulse,
-  ShieldCheck,
-  Stethoscope,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Activity, BarChart3, CalendarDays, Clock3, HeartPulse, Info, ShieldCheck, Stethoscope } from "lucide-react";
 import type { HospitalOverview, Period } from "@/lib/types";
-import { workspaceApi } from "@/lib/client-api";
-import {
-  BalanceCard,
-  ErrorPanel,
-  LoadingPanel,
-  MetricCard,
-  NoPeriodData,
-  number,
-  PeriodTabs,
-  SampleBadge,
-  SectionHeading,
-} from "./ui";
+import { BalanceCard, MetricCard, NoPeriodData, number, PeriodTabs, SampleBadge, SectionHeading } from "./ui";
 import { TopIntro } from "./app-shell";
 
-export function HospitalDashboard() {
+export function HospitalDashboard({ overview }: { overview: HospitalOverview }) {
   const [period, setPeriod] = useState<Period>("today");
-  const [data, setData] = useState<HospitalOverview | null>(null);
-  const [error, setError] = useState("");
-  const [reload, setReload] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setError("");
-
-    workspaceApi
-      .hospitalOverview(period, controller.signal)
-      .then(setData)
-      .catch((error: unknown) => {
-        if (error instanceof Error && error.name !== "AbortError") {
-          setError(error.message);
-        }
-      });
-
-    return () => controller.abort();
-  }, [period, reload]);
-
-  function changePeriod(value: Period) {
-    setData(null);
-    setError("");
-    setPeriod(value);
-  }
-
+  const data = period === "today" ? overview : null;
   const summary = data?.summary;
-  const maxSettingMinutes = Math.max(
-    1,
-    ...(data?.settings.map((setting) => setting.minutes) ?? []),
-  );
-  const maxClinicianMinutes = Math.max(
-    1,
-    ...(data?.clinicians.map((clinician) => clinician.minutes) ?? []),
+  const maxSettingMinutes = Math.max(1, ...(data?.settings.map((setting) => setting.minutes) ?? []));
+  const maxClinicianMinutes = Math.max(1, ...(data?.clinicians.map((clinician) => clinician.minutes) ?? []));
+  const periodLabel = period === "today" ? "Today · sample snapshot" : period === "7d" ? "Last 7 days" : "Last 30 days";
+  const consumedPercent = useMemo(
+    () => summary?.minutesAllocated ? Math.round((summary.minutesConsumed / summary.minutesAllocated) * 100) : 0,
+    [summary],
   );
 
   return (
@@ -70,203 +24,99 @@ export function HospitalDashboard() {
       <TopIntro
         eyebrow="HOSPITAL COMMAND CENTRE"
         title="Hospital overview"
-        description="A clearer view of care delivery, clinician activity and minute utilization."
+        description="Operational minutes, care settings, and clinician activity in one calm sample workspace."
       />
-
       <div className="workspace-heading">
-        <div>
-          <h2>Hospital Command Centre</h2>
-          <p>
-            Hospital owner / administrator · {data?.hospital || "NourDoc Demo Hospital"}
-          </p>
-        </div>
+        <div><h2>Hospital Command Centre</h2><p>Hospital administrator · NourDoc Demo Hospital</p></div>
         <SampleBadge />
       </div>
-
       <div className="controls-row">
-        <PeriodTabs value={period} onChange={changePeriod} />
-        <span className="period-label">
-          <CalendarDays size={14} />
-          {period === "today"
-            ? "Today"
-            : period === "7d"
-              ? "Last 7 days"
-              : "Last 30 days"}
-        </span>
+        <PeriodTabs value={period} onChange={setPeriod} />
+        <span className="period-label"><CalendarDays size={15} /> {periodLabel}</span>
       </div>
 
-      {error ? (
-        <ErrorPanel
-          message={error}
-          onRetry={() => {
-            setError("");
-            setReload((value) => value + 1);
-          }}
-        />
-      ) : !data ? (
-        <LoadingPanel />
-      ) : !data.available || !summary ? (
+      {!data || !data.available || !summary ? (
         <NoPeriodData period={period} />
       ) : (
         <>
           <SectionHeading
             title="At a glance"
-            subtitle="Essential metrics across the hospital"
-            right={
-              <span className="live-tag">
-                <span /> SAMPLE METRICS
-              </span>
-            }
+            subtitle="Illustrative operational values from the supplied Today fixture"
+            right={<span className="neutral-chip">Sample snapshot</span>}
           />
-
           <div className="metrics-grid">
-            <MetricCard
-              icon="users"
-              label="Patients served"
-              value={number(summary.patientsServed)}
-              sub="Completed patient encounters"
-              change="Today"
-              tone="mint"
-            />
-            <MetricCard
-              icon="clock"
-              label="Minutes consumed"
-              value={number(summary.minutesConsumed)}
-              sub="Across all care settings"
-              change="16.5 min avg"
-            />
-            <MetricCard
-              icon="report"
-              label="Estimated expenditure"
-              value={`PKR ${number(summary.expenditurePKR)}`}
-              sub="Illustrative operational spend"
-              change="Preview only"
-            />
-            <MetricCard
-              icon="waiting"
-              label="Patients waiting"
-              value={number(summary.patientsWaiting)}
-              sub="Current sample queue"
-              change="Sample queue"
-              tone="amber"
-            />
+            <MetricCard icon="users" label="Patients served" value={number(summary.patientsServed)} sub="Fixture-defined patient count" meta="Today sample" tone="mint" />
+            <MetricCard icon="clock" label="Minutes consumed" value={`${number(summary.minutesConsumed)} min`} sub={`${consumedPercent}% of allocated minutes`} meta="Today sample" />
+            <MetricCard icon="report" label="Illustrative expenditure" value={`PKR ${number(summary.expenditurePKR)}`} sub="No billing system connected" meta="Preview only" />
+            <MetricCard icon="waiting" label="Patients waiting" value={number(summary.patientsWaiting)} sub="Static sample queue count" meta="Sample snapshot" tone="amber" />
           </div>
 
-          <div className="data-row main-data-row">
-            <section className="surface-panel balance-panel">
-              <SectionHeading
-                title="Minutes allocation"
-                subtitle="Track the hospital's available capacity"
-                right={<Clock3 size={17} className="section-icon" />}
-              />
-              <BalanceCard
-                available={summary.minutesAvailable}
-                allocated={summary.minutesAllocated}
-                consumed={summary.minutesConsumed}
-              />
-              <p className="panel-footnote">
-                <ShieldCheck size={14} /> Curated preview figures for interface review;
-                billing logic is not connected.
-              </p>
+          <div className="data-row">
+            <section className="surface-panel">
+              <SectionHeading title="Hospital minute allocation" subtitle="Consumed and remaining minutes from the supplied allocation" right={<Clock3 size={18} className="section-icon" />} />
+              <BalanceCard available={summary.minutesAvailable} allocated={summary.minutesAllocated} consumed={summary.minutesConsumed} />
+              <p className="panel-footnote"><ShieldCheck size={15} /> 15,000 allocated − 2,480 consumed = 12,520 available.</p>
             </section>
 
-            <section className="surface-panel care-panel">
-              <SectionHeading
-                title="Care setting utilization"
-                subtitle="Minutes and patient activity by setting"
-                right={<Activity size={17} className="section-icon" />}
-              />
+            <section className="surface-panel">
+              <SectionHeading title="Care setting comparison" subtitle="Patients and minutes in each displayed sample setting" right={<Activity size={18} className="section-icon" />} />
               <div className="care-list">
-                {data.settings.map((setting) => (
-                  <div key={setting.label} className="care-row">
-                    <div className="care-symbol">
-                      {setting.label === "OPD" ? (
-                        <Stethoscope size={17} />
-                      ) : setting.label === "Emergency" ? (
-                        <HeartPulse size={17} />
-                      ) : setting.label === "IPD" ? (
-                        <BarChart3 size={17} />
-                      ) : (
-                        <Activity size={17} />
-                      )}
-                    </div>
-                    <div className="care-description">
-                      <strong>{setting.label}</strong>
-                      <span>{number(setting.patients)} patients</span>
-                      <div className="care-util-track" aria-hidden="true">
-                        <span
-                          style={{
-                            width: `${Math.round((setting.minutes / maxSettingMinutes) * 100)}%`,
-                          }}
-                        />
+                {data.settings.map((setting) => {
+                  const relative = Math.round((setting.minutes / maxSettingMinutes) * 100);
+                  return (
+                    <div key={setting.label} className="care-row">
+                      <div className="care-symbol">
+                        {setting.label === "OPD" ? <Stethoscope size={18} /> : setting.label === "Emergency" ? <HeartPulse size={18} /> : setting.label === "IPD" ? <BarChart3 size={18} /> : <Activity size={18} />}
                       </div>
+                      <div className="care-description">
+                        <div><strong>{setting.label}</strong><span>{number(setting.patients)} patients</span></div>
+                        <div className="comparison-bar" role="meter" aria-label={`${setting.label} minutes relative to the highest displayed care setting`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={relative}>
+                          <span style={{ width: `${relative}%` }} />
+                        </div>
+                      </div>
+                      <strong className="care-minutes">{number(setting.minutes)} <small>min</small></strong>
                     </div>
-                    <strong className="care-minutes">
-                      {number(setting.minutes)} <small>min</small>
-                    </strong>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+              <p className="comparison-note"><Info size={14} /> Bars compare minutes with the highest displayed setting; they are not capacity percentages.</p>
             </section>
           </div>
 
           <section className="surface-panel clinician-panel">
             <SectionHeading
-              title="Clinician utilization"
-              subtitle="A focused view of activity across the active clinical team"
-              right={<span className="soft-chip">{data.clinicians.length} active clinicians</span>}
+              title="Clinician activity sample"
+              subtitle="Operational totals for the four supplied roster profiles"
+              right={<span className="neutral-chip">{data.clinicians.length} profiles in sample roster</span>}
             />
             <div className="doctor-list">
-              {data.clinicians.map((clinician) => (
-                <Link
-                  className="doctor-row doctor-row-button"
-                  key={clinician.id}
-                  href={`/hospital/doctors/${encodeURIComponent(clinician.id)}`}
-                  title={`View ${clinician.name} sample utilization`}
-                >
-                  <div className="doctor-avatar">
-                    {clinician.name
-                      .split(" ")
-                      .slice(1)
-                      .map((part) => part[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
-                  <div className="doctor-stat">
-                    <div className="doctor-head">
-                      <div>
-                        <strong>{clinician.name}</strong>
-                        <small>{clinician.department}</small>
+              {data.clinicians.map((clinician) => {
+                const relative = Math.round((clinician.minutes / maxClinicianMinutes) * 100);
+                return (
+                  <Link className="doctor-row doctor-row-button" key={clinician.id} href={`/hospital/doctors/${encodeURIComponent(clinician.id)}`}>
+                    <div className="doctor-avatar">{initials(clinician.name)}</div>
+                    <div className="doctor-stat">
+                      <div className="doctor-head">
+                        <div><strong>{clinician.name}</strong><small>{clinician.department}</small></div>
+                        <div className="right-stat"><strong>{number(clinician.patients)} patients</strong><small>{number(clinician.minutes)} minutes</small></div>
                       </div>
-                      <div className="right-stat">
-                        <strong>{number(clinician.patients)} patients</strong>
-                        <small>{number(clinician.minutes)} minutes</small>
+                      <div className="comparison-bar" role="meter" aria-label={`${clinician.name} minutes relative to the highest minutes in this displayed clinician sample`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={relative}>
+                        <span style={{ width: `${relative}%` }} />
                       </div>
                     </div>
-                    <div
-                      className="util-track"
-                      title="Relative to the highest minute count among the displayed sample doctors"
-                    >
-                      <span
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (clinician.minutes / maxClinicianMinutes) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                    <span className="row-action-label">View activity</span>
+                  </Link>
+                );
+              })}
             </div>
-            <p className="panel-footnote">
-              <ArrowUpRight size={14} /> Clinician metrics are fictional preview data designed
-              to demonstrate utilization patterns.
-            </p>
+            <p className="panel-footnote"><Info size={15} /> Comparative bars are relative to this displayed sample, not individual allocations.</p>
           </section>
         </>
       )}
     </>
   );
+}
+
+function initials(name: string): string {
+  return name.split(" ").filter((part) => part !== "Dr.").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 }

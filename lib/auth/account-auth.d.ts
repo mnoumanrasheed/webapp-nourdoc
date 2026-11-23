@@ -1,0 +1,1 @@
+export function authenticateConfiguredAccount<T extends { identifier: string; passwordHash: string }>(accounts: readonly T[], identifier: string, password: string, dummyHash: string): Promise<T | null>;

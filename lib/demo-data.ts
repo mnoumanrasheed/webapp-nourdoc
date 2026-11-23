@@ -7,7 +7,10 @@ export const demoAdmin: SessionUser = {
   userId: "admin-demo-001", name: "Hospital Administrator", role: "hospital_admin", hospitalId: DEMO_HOSPITAL_ID,
 };
 export const demoDoctor: SessionUser = {
-  userId: "doctor-user-demo-001", name: "Dr. Ahmed Khan", role: "doctor", hospitalId: DEMO_HOSPITAL_ID, doctorId: DEMO_DOCTOR_ID,
+  userId: "doctor-user-demo-001", name: "Dr. Ahmed Khan", role: "doctor", hospitalId: DEMO_HOSPITAL_ID, doctorId: DEMO_DOCTOR_ID, department: "Cardiology",
+};
+export const demoDoctorSara: SessionUser = {
+  userId: "doctor-user-demo-002", name: "Dr. Sara Malik", role: "doctor", hospitalId: DEMO_HOSPITAL_ID, doctorId: "doctor-sara-demo", department: "Pediatrics",
 };
 export const clinicians: Clinician[] = [
   { id: DEMO_DOCTOR_ID, name: "Dr. Ahmed Khan", department: "Cardiology", patients: 28, minutes: 385, hospitalId: DEMO_HOSPITAL_ID },
@@ -49,9 +52,17 @@ export function hospitalOverview(period: Period, hospitalId: string): HospitalOv
   };
 }
 export function doctorOverview(period: Period, user: SessionUser): DoctorOverview {
+  const clinician = clinicians.find(item => item.hospitalId === user.hospitalId && item.id === user.doctorId);
   const available = period === "today" && user.hospitalId === DEMO_HOSPITAL_ID && user.doctorId === DEMO_DOCTOR_ID;
   return {
-    period, available, doctor: { id: user.doctorId ?? "", name: user.name, department: "Cardiology Department", hospital: "NourDoc Demo Hospital" },
+    period,
+    available,
+    doctor: {
+      id: user.doctorId ?? "",
+      name: user.name,
+      department: clinician?.department ?? user.department ?? "Clinical department unavailable",
+      hospital: user.hospitalId === DEMO_HOSPITAL_ID ? "NourDoc Demo Hospital" : "Unavailable demonstration workspace",
+    },
     summary: available ? { patientsServed: 28, waiting: 6, toApprove: 4, minutesConsumed: 385, allocatedMinutes: 2000, availableMinutes: 1615 } : undefined,
     encounters: available ? encounters.filter(e => e.hospitalId === user.hospitalId && e.doctorId === user.doctorId) : [],
   };

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearSession } from "@/lib/session";
-import { noStore } from "@/lib/api";
+import { hasValidRequestOrigin, noStoreHeaders } from "@/lib/auth/request";
+import { clearSession, isSecureRequest } from "@/lib/session";
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: noStore });
-  await clearSession();
-  return NextResponse.json({ ok: true }, { headers: noStore });
+  if (!hasValidRequestOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders });
+  await clearSession(isSecureRequest(request));
+  return NextResponse.json({ ok: true }, { headers: noStoreHeaders });
 }

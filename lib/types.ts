@@ -9,6 +9,7 @@ export interface SessionUser {
   role: Role;
   hospitalId: string;
   doctorId?: string;
+  department?: string;
 }
 export interface Clinician {
   id: string;
@@ -55,6 +56,13 @@ export interface DoctorOverview {
   doctor: { id: string; name: string; department: string; hospital: string };
   summary?: { patientsServed: number; waiting: number; toApprove: number; minutesConsumed: number; allocatedMinutes: number; availableMinutes: number };
   encounters: Encounter[];
+}
+export interface AdminDoctorActivitySummary {
+  clinician: Clinician;
+  snapshotLabel: "Today · sample snapshot";
+  rosterLabel: "Illustrative sample roster";
+  relativeMinutesPercent: number;
+  relativeMinutesBasis: "Compared with the highest minutes in the displayed sample";
 }
 export interface ClinicalReport {
   id: string;

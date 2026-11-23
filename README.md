@@ -1,83 +1,78 @@
 # NourDoc Premium Healthcare Workspace
 
-A responsive Next.js App Router + TypeScript demonstration workspace for hospital operations, clinician activity, patient encounter navigation, and local clinical-report review workflows.
+A white-theme Next.js 16 UI-first demonstration workspace for hospital operations, clinician activity, synthetic patient encounter navigation, and physician-led review of one supplied sample report.
 
-The application uses a premium white interface with NourDoc teal/emerald accents. All displayed records are synthetic demonstration fixtures. No live patient data, production identity provider, durable clinical writes, signatures, billing integration, or external sharing are connected.
+This is a UI-first prototype. It does not connect to a live healthcare API, EHR, billing platform, external identity provider, AI service, production database, or real patient records. All data displayed is synthetic.
 
-## Local setup
+## Quick start (no credentials or backend required)
 
-Requires Node.js 20.9+.
+Requirements: Node.js 20.9 or newer.
 
-```bash
+```powershell
 npm install
-Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Set a unique 32+ character `SESSION_SECRET` in `.env.local`. Keep:
+Open `http://localhost:3000` (or `http://localhost:3000/login`) in your browser.
 
-```text
-DEMO_MODE=true
-NEXT_PUBLIC_DATA_MODE=mock
+- The landing page presents the **Explore NourDoc** role selector.
+- Click **Hospital Administrator** to preview hospital operations, clinician activity, care setting comparisons, and minutes allocation.
+- Click **Doctor / Clinician** to preview clinician KPIs, consultation minutes balance, assigned synthetic encounters, and report review.
+- Click **Switch experience** from the top bar, sidebar, or user menu at any time to return to `/login` and switch between workspaces.
+- No username, password, `.env.local`, `SESSION_SECRET`, or setup command is needed to run the prototype.
+
+## Interactive prototype architecture
+
+- **One-click preview selection**: The entry page at `/login` provides direct access to both synthetic workspaces without credential prompts or authentication blockers.
+- **Dedicated synthetic viewer identities**:
+  - `Hospital Administrator`: Maps to `demoAdmin` (fictional administrator for *NourDoc Demo Hospital*).
+  - `Doctor / Clinician`: Maps to `demoDoctor` (*Dr. Ahmed Khan*, Cardiology).
+- **Smooth navigation**: Prototype navigation does not depend on secret-configured cookies or external services. Both roles can be explored interchangeably without session errors or redirect loops.
+- **Production integration boundary**: Future authentication and authorization code is preserved behind a disabled-by-default boundary (`AUTHENTICATED_MODE="true"`). In prototype mode (default), the repository serves synthetic fixtures directly.
+
+## Prototype routes
+
+### Hospital Administrator
+- `/hospital/dashboard` — supplied Today operational snapshot, minute allocation, care-setting comparison, and clinician sample.
+- `/hospital/doctors` — searchable illustrative roster.
+- `/hospital/doctors/[doctorId]` — aggregate-only doctor activity summary. Patient records and clinical notes are not exposed to the administrator.
+
+### Doctor / Clinician
+- `/doctor/dashboard` — personal clinician activity, minutes balance, and recent encounters.
+- `/doctor/encounters` — patient encounters with search, setting/status filters, pagination, and URL-preserved list state.
+- `/doctor/encounters/[encounterId]` — encounter detail with contextual actions.
+- `/clinical/reports/[reportId]` — physician-led sample SOAP report review interface (available for ND-1025).
+
+Legacy routes `/hospital`, `/doctor`, and `/reports/[id]` automatically redirect to their respective canonical destinations.
+
+## Clinical report review workflow
+
+The report screen (`/clinical/reports/ND-1025`) supports:
+- Structured SOAP editing (Chief complaint, Subjective, Objective, Assessment, Plan, Clinical notes).
+- Discarding unsaved edits or saving in-memory sample drafts.
+- Submitting for demo review and requesting demo revisions.
+- Confirmation dialog for demonstration approval (clearly labeled as non-binding demonstration state).
+- 1–5 local usefulness rating.
+- Copying synthetic notes with notification.
+
+All report modifications live strictly in component memory and reset on page reload. No clinical text is transmitted to an external service or persisted.
+
+## Data integrity and honesty rules
+
+- **Arithmetic consistency**:
+  - Hospital: 15,000 allocated − 2,480 consumed = 12,520 available.
+  - Doctor: 2,000 allocated − 385 consumed = 1,615 available.
+- **Honest timeframes**: Only the supplied "Today" snapshot is available. Selecting 7-day or 30-day filters displays an honest empty state explaining that historical fixtures were not supplied.
+- **Relative comparisons**: Care setting and clinician comparison bars explicitly state that they are relative to the highest value in the displayed sample, rather than allocated capacity.
+- **Sample reports**: Only encounter `ND-1025` (Patient B) contains a supplied clinical report. Encounters without reports clearly display `No sample report available`.
+
+## Verification commands
+
+```powershell
+npm test             # Run automated journey and security tests (14 passing tests)
+npm run audit:css    # Verify 100% static class matching in app/globals.css
+npm run typecheck    # Validate TypeScript types without emit
+npm run build        # Validate optimized production Next.js build
 ```
 
-Open `http://localhost:3000/login` and choose either demonstration role.
-
-## Role-aware routes
-
-### Hospital administrator
-
-- `/hospital/dashboard` — Today KPIs, minute allocation, care-setting activity, and clinician utilization.
-- `/hospital/doctors` — Searchable demonstration doctor directory.
-- `/hospital/doctors/[doctorId]` — Scoped clinician activity detail.
-
-### Doctor
-
-- `/doctor/dashboard` — Dr. Ahmed Khan's demonstration activity and recent encounters.
-- `/doctor/encounters` — Search by patient/encounter, filter by care setting and status.
-- `/doctor/encounters/[encounterId]` — Encounter detail with filter-preserving return navigation.
-- `/clinical/reports/[reportId]` — Structured report editing and local review workflow.
-
-Legacy `/hospital`, `/doctor`, and `/reports/[id]` paths redirect to canonical routes.
-
-## Working interactions
-
-- Signed, HTTP-only demonstration session cookie and role-aware server checks.
-- Responsive sidebar and mobile drawer.
-- Profile menu and logout.
-- Today, 7 Days, and 30 Days filters. Only Today has supplied fixture data; other periods show honest empty states.
-- Doctor search and detail navigation.
-- Encounter search, care-setting filter, status filter, details, and report navigation.
-- Structured report editing, save draft, submit for review, request revision, confirmation before demo approval, and 1–5 usefulness rating.
-- Loading skeletons, empty states, error states, retries, focus states, and reduced-motion support.
-
-Report mutations update local React state only and are explicitly labeled preview-only. They do not create a signed clinical document.
-
-## Data architecture
-
-`lib/repositories/workspace-repository.ts` defines the logical operations required by the frontend. `lib/repositories/mock-workspace-repository.ts` provides deterministic demonstration data. `lib/repositories/index.ts` selects the implementation using `NEXT_PUBLIC_DATA_MODE`.
-
-Only `mock` mode is implemented. API mode intentionally throws until verified backend contracts are supplied. Internal Next.js API routes enforce current demonstration session scope before reading mock fixtures.
-
-## Quality checks
-
-```bash
-npm run test
-npm run typecheck
-npm run build
-```
-
-## Backend requirements
-
-Before production integration, supply and validate:
-
-- Identity provider/session verification and role/tenant claims.
-- Hospital and doctor ownership rules.
-- Pagination/filter contracts for doctors and encounters.
-- Report versioning, validation, optimistic concurrency, audit events, and signed approval transitions.
-- ICD-10/CPT verification service boundaries.
-- Metric definitions, reporting timezone, billing sources, and currency semantics.
-- Runtime response validation and standardized error payloads.
-- Privacy, security, retention, logging, and regulatory controls.
-
-Do not reuse the demonstration role selector or browser-local report state as production authentication or clinical persistence.
+Recommended viewport verification sizes: 1440px, 1024px, 768px, 560px, 390px, and 320px.

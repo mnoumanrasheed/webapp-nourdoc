@@ -1,4 +1,4 @@
-import type { ClinicalReport, Clinician, DoctorOverview, Encounter, HospitalOverview, Period, SessionUser } from "@/lib/types";
+import type { AdminDoctorActivitySummary, ClinicalReport, Clinician, DoctorOverview, Encounter, HospitalOverview, Period, SessionUser } from "@/lib/types";
 
 export type DemoReportTransition = "save_draft" | "submit_review" | "approve" | "request_revision";
 export type ReportDraftInput = Pick<ClinicalReport, "chiefComplaint" | "subjective" | "objective" | "assessment" | "plan" | "notes">;
@@ -11,7 +11,7 @@ export type DemoWriteResult = { previewOnly: true; transition: DemoReportTransit
 export interface WorkspaceRepository {
   getHospitalOverview(period: Period, hospitalId: string): Promise<HospitalOverview>;
   listHospitalDoctors(hospitalId: string): Promise<Clinician[]>;
-  getHospitalDoctor(hospitalId: string, doctorId: string): Promise<Clinician | null>;
+  getAdminDoctorActivitySummary(hospitalId: string, doctorId: string): Promise<AdminDoctorActivitySummary | null>;
   getDoctorOverview(period: Period, user: SessionUser): Promise<DoctorOverview>;
   listDoctorEncounters(user: SessionUser): Promise<Encounter[]>;
   getDoctorEncounter(user: SessionUser, encounterId: string): Promise<Encounter | null>;

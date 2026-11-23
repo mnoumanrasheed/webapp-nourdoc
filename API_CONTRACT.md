@@ -1,57 +1,60 @@
-# NourDoc integration contracts (proposed, not existing backend specifications)
+# NourDoc future integration boundary
 
-These are **proposed frontend-facing shapes** consistent with screenshots, not assertions that your backend already exposes these paths or fields. They allow frontend development without inventing real endpoint names.
+No external API or production database is connected in this phase. The application operates in UI-first prototype mode by default, reading directly from the mock `WorkspaceRepository` on the server without requiring credentials or secret cookies.
+
+The contracts and requirements detailed below describe proposed future architecture for when real backend services, IAM/SSO identity providers, and clinical persistence layers are implemented.
+
+## Current repository contract
+
+`lib/repositories/workspace-repository.ts` defines:
+
+- Hospital overview by verified hospital scope and reporting period.
+- Hospital doctor sample roster.
+- Aggregate-only administrator doctor activity summary.
+- Doctor overview by verified hospital and doctor scope.
+- Doctor-scoped encounter list and encounter lookup.
+- Doctor-scoped clinical report lookup.
+- Future report draft, review, revision, approval, and rating operations.
+
+`lib/repositories/mock-workspace-repository.ts` is the only implementation. `NEXT_PUBLIC_DATA_MODE=mock` selects it. Any other mode fails instead of inventing an integration.
 
 ## Authorization invariants
 
-- User identity and permissions must be verified by the backend session.
-- A hospital administrator's hospital scope is taken from verified identity and checked on all database queries, not `hospitalId` in a browser request.
-- A clinician's doctor scope is taken from verified identity and enforced for encounters, reports, note edits and approvals.
-- Report-read and report-write rights may differ. Use explicit permission checks and a full clinical audit log.
-- Return 401 if not authenticated, 403 if role insufficient, 404 for inaccessible/missing encounter, and 422 for invalid payloads.
-- Do not trust `role`, `doctorId`, `hospitalId`, or approval authority from client state.
+- Identity, role, hospital ID, and doctor ID come from a verified server session.
+- Browser role fields, query parameters, and route IDs never grant authorization.
+- An administrator may read operational aggregates and the sample roster for the bound hospital, not doctor-only encounters or report content.
+- A doctor may read only encounters and reports matching both the bound hospital ID and doctor ID.
+- Inaccessible and missing doctor-scoped resources use the same not-found behavior to avoid revealing another clinician's records.
+- Report-read and report-write permissions must remain separate in a real backend.
 
-## Suggested endpoints / payloads
+## Future API adapter requirements
 
-### GET /api/hospital/overview?period=today|7d|30d
+If a backend is supplied later, add a typed repository implementation rather than spreading fetch calls through components. Validate every response at runtime and agree on:
 
-Protected: hospital_admin. Shape: `HospitalOverview` in `lib/types.ts`. Today sample includes `patientsServed`, `minutesConsumed`, `expenditurePKR`, `patientsWaiting`, `minutesAllocated`, `minutesAvailable`, clinician samples and care-setting utilization. Real backend should provide complete roster vs. partial sample distinction, reporting timezone and date range.
+- Verified identity/session claims and tenant ownership rules.
+- Pagination and filter semantics for doctors and encounters.
+- Reporting timezone, date boundaries, and metric definitions.
+- Distinct-patient versus encounter-count semantics.
+- Minute allocation, consumption, rounding, and balance rules.
+- Expenditure source, currency, tax, and paid/incurred semantics.
+- Standard 401, 403, 404, 409, 422, and error payload behavior.
+- Request correlation, privacy-safe logging, retention, and audit metadata.
 
-### GET /api/doctor/overview?period=today|7d|30d
+## Clinical report writes
 
-Protected: doctor. Shape: `DoctorOverview` in `lib/types.ts`. Includes doctor profile, metrics and only authorized encounters. Real integration should paginate encounter rows and filter by date/care setting server-side as needed.
+The current UI keeps report changes in component memory only. A real write contract requires:
 
-### GET /api/reports/:encounterId
+- Stable report and revision identifiers.
+- Optimistic concurrency/version checks.
+- Draft validation and structured field limits.
+- Explicit transition permissions.
+- Immutable audit events with verified actor identity.
+- Idempotency behavior.
+- Separate physician-signature and approval operations.
+- Clear handling for clinical coding verification.
 
-Protected: doctor who owns encounter and has report-read rights. Shape: `ClinicalReport` in `lib/types.ts`. All currently shown text is sample copy transcribed from the image; real backend requires source-verified records.
+Never implement approval as an unverified browser boolean. “Approved in demo” must not be mapped to a signed clinical status.
 
-### PATCH /api/reports/:encounterId
+## Local auth routes
 
-**Not implemented.** Before implementation, agree on an explicit versioned API contract with backend team including draft content, optimistic concurrency/revision ID, author identity, authorization, change audit, and validation. Approval should be a separate audited state transition with a verified clinician signature, not a boolean submitted by the browser.
-
-## Metric definitions to agree with backend
-
-- `patientsServed`: distinct patients vs. number of encounters (these can differ)
-- `minutesConsumed`: individual consultation durations, billed minutes or rounded allocation usage
-- `minutesAllocated`: per clinician, per hospital or subscription pool; period-specific balance vs. running balance
-- `patientsWaiting`: waiting room count vs. clinician pending work
-- `toApprove`: status/assigned reviewer definition
-- `expenditurePKR`: billing source, taxes, currency, paid vs. incurred, precise date range
-- `period`: timezone (hospital-local), boundaries, and historical aggregation rules
-
-No real endpoint URL, bearer token, IDP, billing formula, database schema or clinical compliance certification has been inferred from the screenshots.
-
-## Repository boundary implemented in the frontend
-
-`lib/repositories/workspace-repository.ts` defines these logical operations without asserting backend URLs:
-
-- Fetch hospital dashboard by period and verified hospital scope.
-- List hospital doctors and fetch one scoped doctor.
-- Fetch doctor dashboard by period and verified doctor scope.
-- List doctor encounters and fetch one scoped encounter.
-- Fetch a scoped clinical report.
-- Save a draft, submit review, request revision, approve, and rate a report as explicit workflow operations.
-
-The current mock implementation supports deterministic reads. Report workflow controls intentionally update local demonstration state only. Before implementing writes, the backend contract still needs report version/revision identifiers, optimistic concurrency, transition permissions, validation errors, audit metadata, and idempotency behavior.
-
-The runtime selector is `NEXT_PUBLIC_DATA_MODE=mock`. No API-backed implementation is enabled until verified contracts are supplied.
+`POST /api/auth/demo-login` and `POST /api/auth/logout` exist only for the credential-protected local demonstration. They are same-origin, no-store operations and are not proposed production identity endpoints.
